@@ -150,11 +150,11 @@ class Glove(SaveLoad):
         self.train()
 
     def _log_epoch_end(self, cur_epoch, elapsed):
-        _, rw_spearman_corr, _ = self.wv.evaluate_word_pairs('../msc_tifreaa/gensim/test/test_data/rare_word.txt')
-        _, wordsim_spearman, _ = self.wv.evaluate_word_pairs('../msc_tifreaa/gensim/test/test_data/wordsim353.tsv')
-        _, simlex_spearman, _ = self.wv.evaluate_word_pairs('../msc_tifreaa/gensim/test/test_data/simlex999.txt')
-        _, mturk_spearman, _ = self.wv.evaluate_word_pairs('../msc_tifreaa/gensim/test/test_data/mturk771.tsv')
-        _, simverb_spearman, _ = self.wv.evaluate_word_pairs('../msc_tifreaa/gensim/test/test_data/simverb3500.tsv')
+        _, rw_spearman_corr, _ = self.wv.evaluate_word_pairs('gensim/test/test_data/rare_word.txt')
+        _, wordsim_spearman, _ = self.wv.evaluate_word_pairs('gensim/test/test_data/wordsim353.tsv')
+        _, simlex_spearman, _ = self.wv.evaluate_word_pairs('gensim/test/test_data/simlex999.txt')
+        _, mturk_spearman, _ = self.wv.evaluate_word_pairs('gensim/test/test_data/mturk771.tsv')
+        _, simverb_spearman, _ = self.wv.evaluate_word_pairs('gensim/test/test_data/simverb3500.tsv')
 
         # Compute embedding norms for top 10 most frequent words and least frequent words (words outside top 1000)
         target_norms = array([norm(self.wv.word_vec(w)) for w in self.wv.index2entity[:self.vocab_size]])
@@ -192,7 +192,7 @@ class Glove(SaveLoad):
                 most_similar=VanillaWordEmbeddingsKeyedVectors.batch_most_similar_analogy,
                 verbose=False)
             msr_analogy_eval = self.wv.accuracy(
-                '../msc_tifreaa/gensim/test/test_data/msr_word_relationship.processed',
+                'gensim/test/test_data/msr_word_relationship.processed',
                 restrict_vocab=400000,
                 most_similar=VanillaWordEmbeddingsKeyedVectors.batch_most_similar_analogy,
                 verbose=False)

@@ -335,7 +335,7 @@ if __name__ == "__main__":
 
         ckpt_word_list = None
         if args.ckpt_emb:
-            with open(os.path.join(args.root, "msc_tifreaa/data/google_analogy_vocab.txt"), "r") as f:
+            with open(os.path.join(args.root, "data/google_analogy_vocab.txt"), "r") as f:
                 ckpt_word_list = [word.strip() for word in f.readlines()]
             ckpt_filename = "word_emb_checkpoints/emb_ckpt_" + os.path.basename(model_filename)
             ckpt_filename = os.path.join(args.root, ckpt_filename)
@@ -496,56 +496,56 @@ if __name__ == "__main__":
 
         logger.log("========= Similarity evaluation =========")
         pearson, spearman, ratio = wv.evaluate_word_pairs(
-            os.path.join(args.root, 'msc_tifreaa/gensim/test/test_data', 'rare_word.txt'),
+            os.path.join(args.root, 'gensim/test/test_data', 'rare_word.txt'),
             dummy4unknown=False,
             restrict_vocab=args.restrict_vocab
         )
         logger.log("Stanford Rare World: {:.4f} {:.4f} {:.4f}".format(pearson[0], spearman[0], ratio))
         pearson, spearman, ratio = wv.evaluate_word_pairs(
-            os.path.join(args.root, 'msc_tifreaa/gensim/test/test_data', 'wordsim353.tsv'),
+            os.path.join(args.root, 'gensim/test/test_data', 'wordsim353.tsv'),
             dummy4unknown=False,
             debug_file=sim_debug_file,
             restrict_vocab=args.restrict_vocab
         )
         logger.log("WordSim353: {:.4f} {:.4f} {:.4f}".format(pearson[0], spearman[0], ratio))
         pearson, spearman, ratio = wv.evaluate_word_pairs(
-            os.path.join(args.root, 'msc_tifreaa/gensim/test/test_data', 'simlex999.txt'),
+            os.path.join(args.root, 'gensim/test/test_data', 'simlex999.txt'),
             dummy4unknown=False,
             restrict_vocab=args.restrict_vocab
         )
         logger.log("SimLex999: {:.4f} {:.4f} {:.4f}".format(pearson[0], spearman[0], ratio))
         pearson, spearman, ratio = wv.evaluate_word_pairs(
-            os.path.join(args.root, 'msc_tifreaa/gensim/test/test_data', 'mturk771.tsv'),
+            os.path.join(args.root, 'gensim/test/test_data', 'mturk771.tsv'),
             dummy4unknown=False,
             restrict_vocab=args.restrict_vocab
         )
         logger.log("MTurk771: {:.4f} {:.4f} {:.4f}".format(pearson[0], spearman[0], ratio))
         pearson, spearman, ratio = wv.evaluate_word_pairs(
-            os.path.join(args.root, 'msc_tifreaa/gensim/test/test_data', 'simverb3500.tsv'),
+            os.path.join(args.root, 'gensim/test/test_data', 'simverb3500.tsv'),
             dummy4unknown=False,
             restrict_vocab=args.restrict_vocab
         )
         logger.log("SimVerb3500: {:.4f} {:.4f} {:.4f}".format(pearson[0], spearman[0], ratio))
         pearson, spearman, ratio = wv.evaluate_word_pairs(
-            os.path.join(args.root, 'msc_tifreaa/gensim/test/test_data', 'men_dataset.tsv'),
+            os.path.join(args.root, 'gensim/test/test_data', 'men_dataset.tsv'),
             dummy4unknown=False,
             restrict_vocab=args.restrict_vocab
         )
         logger.log("MEN: {:.4f} {:.4f} {:.4f}".format(pearson[0], spearman[0], ratio))
         pearson, spearman, ratio = wv.evaluate_word_pairs(
-            os.path.join(args.root, 'msc_tifreaa/gensim/test/test_data', 'MC-30.tsv'),
+            os.path.join(args.root, 'gensim/test/test_data', 'MC-30.tsv'),
             dummy4unknown=False,
             restrict_vocab=args.restrict_vocab
         )
         logger.log("MC: {:.4f} {:.4f} {:.4f}".format(pearson[0], spearman[0], ratio))
         pearson, spearman, ratio = wv.evaluate_word_pairs(
-            os.path.join(args.root, 'msc_tifreaa/gensim/test/test_data', 'RG-65.tsv'),
+            os.path.join(args.root, 'gensim/test/test_data', 'RG-65.tsv'),
             dummy4unknown=False,
             restrict_vocab=args.restrict_vocab
         )
         logger.log("RG: {:.4f} {:.4f} {:.4f}".format(pearson[0], spearman[0], ratio))
         pearson, spearman, ratio = wv.evaluate_word_pairs(
-            os.path.join(args.root, 'msc_tifreaa/gensim/test/test_data', 'YP-130.tsv'),
+            os.path.join(args.root, 'gensim/test/test_data', 'YP-130.tsv'),
             dummy4unknown=False,
             restrict_vocab=args.restrict_vocab
         )
@@ -577,7 +577,7 @@ if __name__ == "__main__":
 
             start = time.time()
             analogy_eval = wv.accuracy(
-                    os.path.join(args.root, 'msc_tifreaa/gensim/test/test_data', 'questions-words.txt'),
+                    os.path.join(args.root, 'gensim/test/test_data', 'questions-words.txt'),
                     restrict_vocab=args.restrict_vocab,
                     most_similar=most_similar,
                     debug=args.is_debug)
@@ -600,7 +600,7 @@ if __name__ == "__main__":
 
             if not args.is_debug:
                 analogy_eval = wv.accuracy(
-                        os.path.join(args.root, 'msc_tifreaa/gensim/test/test_data/', 'msr_word_relationship.processed'),
+                        os.path.join(args.root, 'gensim/test/test_data/', 'msr_word_relationship.processed'),
                         restrict_vocab=args.restrict_vocab,
                         most_similar=most_similar)
                 # Now, instead of adding the correct/incorrect words to a list, I am just counting the number of correct/incorrect answers.
