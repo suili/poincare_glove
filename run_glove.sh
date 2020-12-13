@@ -1,7 +1,7 @@
 #!/bin/bash
 
 export LC_CTYPE=C
-random_ending=`cat /dev/urandom | tr -cd 'a-f0-9' | head -c 5`
+random_ending=`LC_ALL=C tr -cd 'a-f0-9' < /dev/urandom | head -c 5`
 
 LEDGER_FILENAME=experiments_ledger.txt
 
@@ -11,6 +11,7 @@ TRAIN=true
 EVAL=true
 MIX=false
 RESTRICT_VOCAB=400000
+CHUNKSIZE=1000
 LR=0.05
 NO_REDIRECT=false
 DEBUG=false
@@ -201,35 +202,35 @@ done
 # ./make_word2vec.sh
 # echo Compiled cython successfully
 
-if [ ! -d ../train_logs ]; then
-  mkdir ../train_logs
+if [ ! -d $ROOT/train_logs ]; then
+  mkdir $ROOT/train_logs
 fi
 
-if [ ! -d ../logs ]; then
-  mkdir ../logs
+if [ ! -d $ROOT/logs ]; then
+  mkdir $ROOT/logs
 fi
 
-if [ ! -d ../eval_logs ]; then
-  mkdir ../eval_logs
+if [ ! -d $ROOT/eval_logs ]; then
+  mkdir $ROOT/eval_logs
 fi
 
-if [ ! -d ../word_emb_checkpoints ]; then
-  mkdir ../word_emb_checkpoints
+if [ ! -d $ROOT/word_emb_checkpoints ]; then
+  mkdir $ROOT/word_emb_checkpoints
 fi
 
-if [ ! -d ../models/glove/glove_baseline ]; then
-  mkdir ../models/glove/glove_baseline
+if [ ! -d $ROOT/models/glove/glove_baseline ]; then
+  mkdir -p $ROOT/models/glove/glove_baseline
 fi
 
-if [ ! -d ../models/glove/geometric_emb ]; then
-  mkdir ../models/glove/geometric_emb
+if [ ! -d $ROOT/models/glove/geometric_emb ]; then
+  mkdir -p $ROOT/models/glove/geometric_emb
 fi
 
 # Train model.
 if [[ $TRAIN = true ]]; then
   # Parse command line arguments.
   MODEL_FILE="glove_ep"$EPOCHS"_size"$SIZE
-  cmd="python3 glove_code/scripts/glove_main.py --train --root=.. \
+  cmd="python3 glove_code/scripts/glove_main.py --train --root=$ROOT \
       --coocc_file="$COOCC_FILE" --vocab_file="$VOCAB_FILE" --size="$SIZE"
       --workers="$WORKERS" --chunksize="$CHUNKSIZE" --epochs="$EPOCHS 
   if [[ $USE_OUR_FORMAT ]]; then
@@ -245,14 +246,14 @@ if [[ $TRAIN = true ]]; then
   fi
   if [[ $EUCLID == 1 ]]; then
     cmd=$cmd" --euclid="$EUCLID
-    MODEL_FILE="../models/glove/geometric_emb/"$MODEL_FILE
+    MODEL_FILE="$ROOT/models/glove/geometric_emb/"$MODEL_FILE
     emb_type="euclid"
-  elif [[ $POINCARE == 1 ]]; then
+  elif [[ $POINCARE -ge 1 ]]; then
     cmd=$cmd" --poincare="$POINCARE
-    MODEL_FILE="../models/glove/geometric_emb/"$MODEL_FILE
+    MODEL_FILE="$ROOT/models/glove/geometric_emb/"$MODEL_FILE
     emb_type="poincare"
   else
-    MODEL_FILE="../models/glove/glove_baseline/"$MODEL_FILE
+    MODEL_FILE="$ROOT/models/glove/glove_baseline/"$MODEL_FILE
     emb_type="vanilla"
   fi
   if [[ $MIX = true ]]; then
@@ -264,7 +265,7 @@ if [[ $TRAIN = true ]]; then
     cmd=$cmd" --optimizer "$OPTIMIZER
     MODEL_FILE=$MODEL_FILE"_OPT"$OPTIMIZER
   else
-    if [[ $POINCARE == 1 ]]; then
+    if [[ $POINCARE -ge 1 ]]; then
       MODEL_FILE=$MODEL_FILE"_OPTradagrad"
     else
       MODEL_FILE=$MODEL_FILE"_OPTadagrad"
@@ -284,7 +285,7 @@ if [[ $TRAIN = true ]]; then
       MODEL_FILE=$MODEL_FILE"_NN"$NN_CONFIG
     fi
   else
-    if [[ $POINCARE == 1 ]]; then
+    if [[ $POINCARE -ge 1 ]]; then
       MODEL_FILE=$MODEL_FILE"_DISTFUNCdist-sq"
     fi
     if [[ $EUCLID == 1 ]]; then
@@ -299,11 +300,11 @@ if [[ $TRAIN = true ]]; then
     cmd=$cmd" --bias"
     MODEL_FILE=$MODEL_FILE"_bias"
   fi
-  if [[ $POINCARE == 1 && $USE_SCALING = true ]]; then
+  if [[ $POINCARE -ge 1 && $USE_SCALING = true ]]; then
     cmd=$cmd" --use_scaling"
     MODEL_FILE=$MODEL_FILE"_scale"
   fi
-  if [[ $POINCARE == 1 && $USE_LOG_PROBS = true ]]; then
+  if [[ $POINCARE -ge 1 && $USE_LOG_PROBS = true ]]; then
     cmd=$cmd" --use_log_probs"
     MODEL_FILE=$MODEL_FILE"_logprobs"
   fi
@@ -324,9 +325,9 @@ if [[ $TRAIN = true ]]; then
 
   model_file_basename=`echo ${MODEL_FILE##*/}`
   train_log_basename="train_"`echo ${MODEL_FILE##*/}`
-  train_log_file="../train_logs/"$train_log_basename
+  train_log_file="$ROOT/train_logs/"$train_log_basename
 
-  tmp_train_log_file="../train_logs/tmp_"$random_ending
+  tmp_train_log_file="$ROOT/train_logs/tmp_"$random_ending
   echo "`date '+%d-%m-%Y %H:%M'` tmp_$random_ending $model_file_basename" >> $ROOT/$LEDGER_FILENAME
 
   echo > $tmp_train_log_file
@@ -337,8 +338,8 @@ if [[ $TRAIN = true ]]; then
   echo "Redirecting output to "$train_log_file
 
   if [[ $NO_REDIRECT != true ]]; then
-    tmp_log_file="../logs/tmp_"$random_ending
-    log_file=../logs/log_$model_file_basename
+    tmp_log_file="$ROOT/logs/tmp_"$random_ending
+    log_file=$ROOT/logs/log_$model_file_basename
     eval $cmd > $tmp_log_file
     mv $tmp_log_file $log_file
   else
@@ -355,7 +356,7 @@ fi
 # Evaluate model.
 if [[ $EVAL = true ]]; then
   echo "Evaluating model from "$MODEL_FILE
-  cmd="python3 glove_code/scripts/glove_main.py --root=.. \
+  cmd="python3 glove_code/scripts/glove_main.py --root=$ROOT \
       --eval --restrict_vocab="$RESTRICT_VOCAB" \
       --model_filename="$MODEL_FILE
   if [[ $COSMUL ]]; then
@@ -388,3 +389,4 @@ if [[ $EVAL = true ]]; then
   eval $cmd
 fi
 
+echo $MODEL_FILE

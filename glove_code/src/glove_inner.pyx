@@ -72,6 +72,10 @@ cdef enum EmbType:
     EUCLID=2  # use Euclidean distance for training
     POINCARE=3  # use Poincare distance for training
     MIX_POINCARE=4  # use mix-Poincare distance for training
+    P2=5  # sui
+    P3=6  # sui
+    P4=7  # sui
+    P5=8  # sui
 
 cdef enum OptType:
     UNK_OPT=0
@@ -434,6 +438,140 @@ cdef void poincare_similarity(REAL_t *similarity, REAL_t *gradR_dS_dv, REAL_t *g
     clamp(gradR_dS_dw, size, -GRAD_CLAMP_THRESHOLD, GRAD_CLAMP_THRESHOLD)
 
 
+# Customization
+# Will output 3 values:
+# similarity    = Poincare similarity between two vectors in hyperbolic space, v and w, defined as -dist_func(poincare_dist(v,w))
+# gradR_dS_dv   = Riemannian derivative of the similarity wrt v (i.e. Euclidean derivative / conformal factor at v)
+# gradR_dS_dw   = Riemannian derivative of the similarity wrt w (i.e. Euclidean derivative / conformal factor at w)
+cdef void poincare_similarity_mod(const EmbType emb_type, 
+                              REAL_t *similarity, REAL_t *gradR_dS_dv, REAL_t *gradR_dS_dw, REAL_t *v, REAL_t *w,
+                              const int size, const DistFuncType dist_func,
+                              const REAL_t cosh_dist_pow, int *num_projections) nogil:
+    cdef int start
+    cdef double dot_vv, dot_ww
+    cdef REAL_t g, alpha_v, beta_w, coef, p_dist, dS_dg, factor, squared_dist, dot_vw
+    cdef REAL_t threshold = 1-EPS, norm_factor, emb_norm
+    cdef REAL_t diff[size]
+
+    emb_norm = snrm2(&size, v, &ONE)
+    if emb_norm > threshold:
+        norm_factor = threshold / emb_norm
+        sscal(&size, &norm_factor, v, &ONE)
+        dot_vv = threshold * threshold
+        if num_projections != NULL:
+            num_projections[0] = num_projections[0] + 1
+    else:
+        dot_vv = our_dot(&size, v, &ONE, v, &ONE)
+
+    emb_norm = snrm2(&size, w, &ONE)
+    if emb_norm > threshold:
+        norm_factor = threshold / emb_norm
+        sscal(&size, &norm_factor, w, &ONE)
+        dot_ww = threshold * threshold
+        if num_projections != NULL:
+            num_projections[0] = num_projections[0] + 1
+    else:
+        dot_ww = our_dot(&size, w, &ONE, w, &ONE)
+
+    # Sanity check
+    if dot_vv >= 1 or dot_ww >= 1 or isnan(dot_vv) or isnan(dot_ww):
+        printf("[%d, %d] Cannot compute Poincare distance between points. Points need to be inside the unit ball, but their squared norm is %f and %f.\n", v, w, dot_vv, dot_ww)
+        exit(-1)
+
+    # diff = v - w
+    # squared_dist = diff * diff
+    scopy(&size, v, &ONE, diff, &ONE)
+    our_saxpy(&size, &MINUS_ONEF, w, &ONE, diff, &ONE)
+    squared_dist = our_dot(&size, diff, &ONE, diff, &ONE)
+    
+    dot_vw = our_dot(&size, v, &ONE, w, &ONE)
+
+    alpha_v = 1 - dot_vv
+    beta_w = 1 - dot_ww
+    #  g = 1 + 2 * squared_dist / (alpha_v * beta_w + EPS*EPS)
+    g = 1 + 2 * dot_vw / (alpha_v * beta_w + EPS*EPS)
+
+    if dist_func == DistFuncType.DIST_SQ:
+        # Similarity is -poincare_dist(v, w)^2.
+        p_dist = acosh(g)
+        similarity[0] = -p_dist * p_dist
+    elif dist_func == DistFuncType.DIST:
+        # Similarity is -poincare_dist(v, w).
+        p_dist = acosh(g)
+        similarity[0] = -p_dist
+    elif dist_func == DistFuncType.COSH_DIST:
+        # Similarity is -cosh(poincare_dist(v, w)).
+        p_dist = g
+        similarity[0] = -p_dist
+    elif dist_func == DistFuncType.COSH_DIST_SQ:
+        # Similarity is -cosh(poincare_dist(v, w))^2.
+        p_dist = g
+        similarity[0] = -p_dist * p_dist
+    elif dist_func == DistFuncType.COSH_DIST_POW_K:
+        # Similarity is -cosh(poincare_dist(v, w))^k.
+        p_dist = pow(g, cosh_dist_pow)
+        similarity[0] = -p_dist
+    elif dist_func == DistFuncType.LOG_DIST_SQ:
+        # Similarity is -log(poincare_dist(v, w)^2 + 1).
+        p_dist = acosh(g)
+        similarity[0] = -log(p_dist * p_dist + 1)
+
+    if isnan(similarity[0]):
+        printf("[%f %f], [%f %f]\n", v[0], v[1], w[0], w[1])
+        printf("g=%f dot_vv=%f dot_ww=%f squared_dist=%f\n", g, dot_vv, dot_ww, squared_dist)
+
+    # Derivative of similarity wrt g.
+    if dist_func == DistFuncType.DIST_SQ:
+        if fabs(g - 1.0) > 0.00001:
+            dS_dg = -2.0 * p_dist * fast_inv_sqrt(g * g - 1)
+        else:
+            # dS_dg is -2 for lim g->1
+            dS_dg = -2.0
+    elif dist_func == DistFuncType.DIST:
+        dS_dg = -fast_inv_sqrt(g * g - 1)
+    elif dist_func == DistFuncType.COSH_DIST:
+        dS_dg = -1.0
+    elif dist_func == DistFuncType.COSH_DIST_SQ:
+        dS_dg = -2.0 * p_dist
+    elif dist_func == DistFuncType.COSH_DIST_POW_K:
+        dS_dg = -cosh_dist_pow * p_dist / g
+    elif dist_func == DistFuncType.LOG_DIST_SQ:
+        if fabs(g - 1.0) > 0.00001:
+            dS_dg = -2.0 * p_dist / sqrt(g * g - 1) / (p_dist * p_dist + 1)
+        else:
+            # dS_dg is -2 for lim g->1
+            dS_dg = -2.0
+    else:
+        printf("Unsupported distance function used.\n")
+        exit(-1)
+
+    # Compute derivative wrt v multiplied by the inverse of the conformal factor at v.
+    factor = dS_dg * alpha_v / beta_w
+    start = 1
+    # Compute result[1] = coef1 * v + coef2 * w
+    scopy(&size, v, &ONE, gradR_dS_dv, &ONE)
+    #  coef = (1.0 + squared_dist / alpha_v) * factor
+    coef = 2 * dot_vw / alpha_v * factor
+    sscal(&size, &coef, gradR_dS_dv, &ONE)
+    #  coef = -factor
+    coef = factor
+    saxpy(&size, &coef, w, &ONE, gradR_dS_dv, &ONE)
+    clamp(gradR_dS_dv, size, -GRAD_CLAMP_THRESHOLD, GRAD_CLAMP_THRESHOLD)
+
+    # Compute derivative wrt w multiplied by the inverse of the conformal factor at w.
+    factor = dS_dg * beta_w / alpha_v
+    start = 1 + size
+    # Compute result[1+size] = coef1 * w + coef2 * v
+    scopy(&size, w, &ONE, gradR_dS_dw, &ONE)
+    #  coef = (1.0 + squared_dist / beta_w) * factor
+    coef = 2 * dot_vw / beta_w * factor
+    sscal(&size, &coef, gradR_dS_dw, &ONE)
+    #  coef = -factor
+    coef = factor
+    saxpy(&size, &coef, v, &ONE, gradR_dS_dw, &ONE)
+    clamp(gradR_dS_dw, size, -GRAD_CLAMP_THRESHOLD, GRAD_CLAMP_THRESHOLD)
+
+
 # Weight function used by glove to weigh the contribution of each co-occ pair.
 cdef inline REAL_t weight_func(const REAL_t x) nogil:
     return 1.0 if x > X_MAX else pow(x / X_MAX, ALPHA)
@@ -560,8 +698,11 @@ cdef inline void get_similarity_and_gradients(const EmbType emb_type, const int 
             # In dS_dv and dS_dw we'll compute the Riemannian gradient wrt v and w.
             poincare_similarity(similarity, dS_dv, dS_dw, v, w, size, dist_func, cosh_dist_pow, num_projections)
     else:
-        printf("Unrecognized embedding type.")
-        exit(-1)
+        poincare_similarity_mod(emb_type, similarity, dS_dv, dS_dw, v, w, size, dist_func, cosh_dist_pow, num_projections)
+
+    #  else:
+        #  printf("Unrecognized embedding type.")
+        #  exit(-1)
 
 
 # Process the list of triples concurrently, using `prange`.
@@ -770,7 +911,7 @@ def train_glove_epoch(model):
 
     cdef EmbType emb_type = EmbType.UNK_EMB
 
-    cdef str opt_str = model.get_attr('optimizer', 'fullrsgd' if poincare == 1 else 'adagrad')
+    cdef str opt_str = model.get_attr('optimizer', 'fullrsgd' if poincare >= 1 else 'adagrad')
     cdef OptType optimizer = OptType.UNK_OPT
 
     cdef str dist_func_str = model.get_attr('dist_func', '')
@@ -795,11 +936,19 @@ def train_glove_epoch(model):
 
     if euclid == 1:
         emb_type = EmbType.EUCLID
-    elif poincare == 1:
+    elif poincare >= 1:
         if num_embs > 0:
             emb_type = EmbType.MIX_POINCARE
-        else:
+        elif poincare == 1:
             emb_type = EmbType.POINCARE
+        elif poincare == 2:
+            emb_type = EmbType.P2
+        elif poincare == 3:
+            emb_type = EmbType.P3
+        elif poincare == 4:
+            emb_type = EmbType.P4
+        elif poincare == 5:
+            emb_type = EmbType.P5
     else:
         emb_type = EmbType.VANILLA
 
@@ -816,8 +965,7 @@ def train_glove_epoch(model):
                 nn.nonlinearity = PositiveNonlinearity.SIGMOID
             elif model.nn_config.nonlinearity == "id":
                 nn.nonlinearity = PositiveNonlinearity.ID
-
-    if emb_type == EmbType.EUCLID:
+    elif emb_type == EmbType.EUCLID:
         # Convert distance function from string to one of the enum values.
         if dist_func_str == "dist":
             dist_func = DistFuncType.DIST
@@ -826,8 +974,19 @@ def train_glove_epoch(model):
         else:
             print("Unrecognized distance function type", dist_func_str, "for euclid")
             exit(-1)
-
-    if emb_type == EmbType.POINCARE:
+    elif emb_type == EmbType.MIX_POINCARE:
+        # Convert distance function from string to one of the enum values.
+        if dist_func_str == "dist-sq":
+            dist_func = DistFuncType.DIST_SQ
+        elif dist_func_str == "dist":
+            dist_func = DistFuncType.DIST
+        elif dist_func_str == "cosh-dist-sq":
+            dist_func = DistFuncType.COSH_DIST_SQ
+        else:
+            print("Unrecognized distance function type", dist_func_str, "for mix-poincare")
+            exit(-1)
+    #  if emb_type == EmbType.POINCARE:
+    else:
         # Convert distance function from string to one of the enum values.
         if dist_func_str == "dist-sq":
             dist_func = DistFuncType.DIST_SQ
@@ -846,17 +1005,6 @@ def train_glove_epoch(model):
             print("Unrecognized distance function type", dist_func_str, "for poincare")
             exit(-1)
 
-    if emb_type == EmbType.MIX_POINCARE:
-        # Convert distance function from string to one of the enum values.
-        if dist_func_str == "dist-sq":
-            dist_func = DistFuncType.DIST_SQ
-        elif dist_func_str == "dist":
-            dist_func = DistFuncType.DIST
-        elif dist_func_str == "cosh-dist-sq":
-            dist_func = DistFuncType.COSH_DIST_SQ
-        else:
-            print("Unrecognized distance function type", dist_func_str, "for mix-poincare")
-            exit(-1)
 
     # Convert optimizer from string to one of the enum values.
     if opt_str == "adagrad":

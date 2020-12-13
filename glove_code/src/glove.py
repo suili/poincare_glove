@@ -1,3 +1,6 @@
+import sys
+sys.path.insert(1, '../../')
+
 from gensim.models.word2vec import WordEmbeddingCheckpoints
 from gensim.utils import SaveLoad
 from gensim.models.keyedvectors import VanillaWordEmbeddingsKeyedVectors, PoincareWordEmbeddingsKeyedVectors, Vocab, \
@@ -112,7 +115,7 @@ class Glove(SaveLoad):
             self.scaling_factor = 1.0 + (random.rand() * 2 * 0.01 - 0.01)
             print("Initial scaling factor is {}".format(self.scaling_factor))
         self.emb_type = "vanilla"
-        if self.poincare == 1:
+        if self.poincare >= 1:
             self.emb_type = "poincare"
         elif self.euclid == 1:
             self.emb_type = "euclid"

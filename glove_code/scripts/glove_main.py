@@ -1,5 +1,8 @@
 #!/usr/local/bin/python3
 
+import sys
+sys.path.insert(1, '../../')
+
 import argparse
 import gensim
 from gensim.models.callbacks import WordEmbCheckpointSaver
@@ -95,6 +98,16 @@ def compute_poincare_aggregate(model, config):
     else:
         print("precomputing aggregated vectors w+c for Euclidean embeddings")
         model.wv.vectors = model.wv.vectors + model.trainables.syn1neg
+
+def write_to_text_file(model, out_path):
+    with open(out_path, "w") as f:
+        for i in range(model.vocab_size):
+            word = model.wv.index2word[i]
+            vec = model.wv.vectors[i]
+            f.write(word)
+            f.write('\t')
+            f.write('\t'.join(map(str, vec)))
+            f.write('\n')
 
 
 def split_filename(basename):
@@ -244,7 +257,7 @@ if __name__ == "__main__":
         callbacks = []
 
         emb_type = None
-        if args.poincare == 1:
+        if args.poincare >= 1:
             emb_type = 'poincare'
         elif args.euclid == 1:
             emb_type = 'euclid'
@@ -388,6 +401,9 @@ if __name__ == "__main__":
         print("Saving model to {}".format(model_filename))
         with open(model_filename, "wb") as f:
             model.save(f)
+
+        # Write to text file
+        write_to_text_file(model, model_filename + ".txt")
     else:
         model = Glove.load(args.model_filename)
         wv = model.wv
