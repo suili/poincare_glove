@@ -1092,9 +1092,10 @@ def write_all(input_text_file, use_glove_format=True, restrict_vocab=999999):
     cdef double count_dbl = 0.0
     cdef char *output_bin_file
 
-    basename = input_text_file.rsplit(".", 1)[0]
-    print(basename)
-    output = basename+"_vocab"+str(restrict_vocab)+".bin"
+    #  basename = input_text_file.rsplit(".", 1)[0]
+    #  print(basename)
+    #  output = basename+"_vocab"+str(restrict_vocab)+".bin"
+    output = input_text_file + ".bin"
     print(output)
 
     py_bytes = output.encode()
@@ -1123,7 +1124,6 @@ def write_all(input_text_file, use_glove_format=True, restrict_vocab=999999):
             count_dbl = count
             fwrite(&p, cython.sizeof(int), 2, fout)
             fwrite(&count_dbl, cython.sizeof(double), 1, fout)
-
     fclose(fout)
 
 
