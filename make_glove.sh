@@ -7,7 +7,7 @@ if [[ $unamestr == "Darwin" ]]; then
 fi
 
 cd glove_code
-cython src/glove_inner.pyx
+cython --directive language_level=3 src/glove_inner.pyx
 if [ $? -eq 0 ]; then
   python3 ./setup.py build_ext --inplace
 else

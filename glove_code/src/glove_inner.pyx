@@ -3,7 +3,6 @@
 # cython: wraparound=False
 # cython: cdivision=True
 # coding: utf-8
-
 import cython
 from cython.parallel import prange, parallel
 import numpy as np
@@ -473,9 +472,18 @@ cdef void poincare_similarity_mod(const EmbType emb_type,
     else:
         dot_ww = our_dot(&size, w, &ONE, w, &ONE)
 
+    cdef int i
     # Sanity check
     if dot_vv >= 1 or dot_ww >= 1 or isnan(dot_vv) or isnan(dot_ww):
         printf("[%d, %d] Cannot compute Poincare distance between points. Points need to be inside the unit ball, but their squared norm is %f and %f.\n", v, w, dot_vv, dot_ww)
+        #  printf("[")
+        #  for i from 0 <= i < size by 1:
+            #  printf("%f, ", v[i])
+        #  printf("]\n")
+        #  printf("[")
+        #  for i from 0 <= i < size by 1:
+            #  printf("%f, ", w[i])
+        #  printf("]\n")
         exit(-1)
 
     # diff = v - w
@@ -745,7 +753,8 @@ cdef void fast_glove(
         w2_index = 0
         occ_count = 0.0
         threadid = cython.parallel.threadid()
-
+        
+        #  printf("training begins, max index %d \n", max_word_index)
         for i in prange(num_pairs, schedule="static", chunksize=chunksize):
             read_size = read_triple(fp, use_glove_format, threadid, i, &w1_index, &w2_index, &occ_count)
 
@@ -762,7 +771,8 @@ cdef void fast_glove(
 
             scopy(&size, &syn0[row1], &ONE, syn0_copy, &ONE)
             scopy(&size, &syn1[row2], &ONE, syn1_copy, &ONE)
-
+            
+            #  printf("computing %d %d\n", w1_index, w2_index)
             # Compute similarity and gradients of similarity wrt to the two vectors (i.e. syn0[w1], syn1[w2]), dS_dv and dS_dw.
             get_similarity_and_gradients(emb_type, size, num_embs, syn0_copy, syn1_copy, &similarity, grad0, grad1, dist_func,
                                          num_projections, cosh_dist_pow, nn, grad_dS_dweights)
