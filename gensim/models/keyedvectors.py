@@ -689,21 +689,21 @@ class WordEmbeddingsKeyedVectors(BaseKeyedVectors):
             sem = {
                 'section': 'semantic',
                 'correct': np.array([np.array(section["correct"])
-                                     for section in filter(lambda s: not s['section'].startswith('gram'), sections)]).sum(axis=0),
+                                     for section in filter(lambda s: not s['section'].startswith('gram'), sections)], dtype=object).sum(axis=0),
                 'incorrect': np.array([np.array(section["incorrect"])
-                                       for section in filter(lambda s: not s['section'].startswith('gram'), sections)]).sum(axis=0),
+                                       for section in filter(lambda s: not s['section'].startswith('gram'), sections)], dtype=object).sum(axis=0),
             }
             syn = {
                 'section': 'syntactic',
                 'correct': np.array([np.array(section["correct"])
-                                     for section in filter(lambda s: s['section'].startswith('gram'), sections)]).sum(axis=0),
+                                     for section in filter(lambda s: s['section'].startswith('gram'), sections)], dtype=object).sum(axis=0),
                 'incorrect': np.array([np.array(section["incorrect"])
-                                       for section in filter(lambda s: s['section'].startswith('gram'), sections)]).sum(axis=0),
+                                       for section in filter(lambda s: s['section'].startswith('gram'), sections)], dtype=object).sum(axis=0),
             }
         total = {
             'section': 'total',
-            'correct': np.array([np.array(section["correct"]) for section in sections]).sum(axis=0),
-            'incorrect': np.array([np.array(section["incorrect"]) for section in sections]).sum(axis=0),
+            'correct': np.array([np.array(section["correct"]) for section in sections], dtype=object).sum(axis=0),
+            'incorrect': np.array([np.array(section["incorrect"]) for section in sections], dtype=object).sum(axis=0),
         }
 
         if len(sections) > 1:
